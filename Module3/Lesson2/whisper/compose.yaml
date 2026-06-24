@@ -1,0 +1,37 @@
+services:
+  whisper:
+    image: onerahmet/openai-whisper-asr-webservice:latest
+    container_name: whisper-asr
+    restart: unless-stopped
+
+    # ВАЖНО: порт привязан ТОЛЬКО к localhost.
+    # Не публикуйте сервис напрямую на белый IP — он без авторизации.
+    # Доступ снаружи (для Make) пробрасывайте через ваш reverse proxy
+    # с токеном/basic-auth. Подробнее — в README.md, раздел «Безопасность».
+    ports:
+      - "9001:9000"
+
+    environment:
+      # CTranslate2-движок: быстрее и экономнее по RAM на CPU, чем openai_whisper.
+      ASR_ENGINE: faster_whisper
+
+      # Модель. Для русского на CPU оптимален small (баланс качество/скорость).
+      # Варианты: tiny | base | small | medium | large-v3
+      ASR_MODEL: small
+
+      # Выгружать модель из RAM после простоя (сек), чтобы не держать память зря.
+      # Поддерживается в свежих версиях образа; если не сработает — можно убрать.
+      MODEL_IDLE_TIMEOUT: "300"
+
+    volumes:
+      # Кэш скачанной модели, чтобы не качать её при каждом перезапуске.
+      - whisper-cache:/root/.cache
+
+    # Ограничители, чтобы при срабатывании не забивать все ядра и память,
+    # ведь на сервере уже ~40 контейнеров. Подберите под свой CPU.
+    cpus: "4.0"
+    mem_limit: 4g
+
+volumes:
+  whisper-cache:
+    name: whisper-cache
